@@ -1,0 +1,10 @@
+openai
+python-dotenv
+pyaudio
+sounddevice
+soxr
+scipy
+numpy
+textual
+pvporcupine
+openai[realtime]
