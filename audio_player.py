@@ -6,7 +6,7 @@ from config import SPEAKER_INDEX
 
 class AudioPlayerAsync:
     def __init__(self):
-        self.CHUNK_LENGTH_S = 0.05  # 100ms
+        self.CHUNK_LENGTH_S = 0.1  # Increase buffer size to 100ms
         self.SAMPLE_RATE = 24000
         self.CHANNELS = 1
         self.SPEAKER_INDEX = SPEAKER_INDEX
@@ -14,6 +14,7 @@ class AudioPlayerAsync:
         self.lock = threading.Lock()
         self.stream = None
         self.playing = False
+        self.min_buffer_size = int(0.2 * self.SAMPLE_RATE)  # 200ms minimum buffer
     
     def callback(self, outdata, frames, time, status):  # noqa
         global signal
@@ -40,8 +41,12 @@ class AudioPlayerAsync:
             # bytes is pcm16 single channel audio data, convert to numpy array
             np_data = np.frombuffer(data, dtype=np.int16)
             self.queue.append(np_data)
+            
+            # Only start playing when we have enough buffer to prevent underruns
             if not self.playing:
-                self.start()
+                total_samples = sum(len(chunk) for chunk in self.queue)
+                if total_samples >= self.min_buffer_size:
+                    self.start()
 
     def start(self):
         self.playing = True
@@ -52,6 +57,7 @@ class AudioPlayerAsync:
             channels=self.CHANNELS,
             dtype=np.int16,
             blocksize=int(self.CHUNK_LENGTH_S * self.SAMPLE_RATE),
+            latency='low',  # Request low latency but stable buffering
         )
         self.stream.start()
 

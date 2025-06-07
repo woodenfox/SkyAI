@@ -14,11 +14,22 @@ def on_wakeword():
     # Start the background wake word detection
     detector = BackgroundWakeWordDetector(interrupt_event)
     detector.start()
-    # Start the AI assistant
-    app = RealtimeClient(interrupt_event)
-    app.run(headless=True)
-    # Cleanup
-    detector.stop()
+    
+    # Start the AI assistant in a separate thread so wake word detection can continue
+    def run_assistant():
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            app = RealtimeClient(interrupt_event)
+            app.run(headless=True)
+        finally:
+            # Cleanup after conversation ends
+            detector.stop()
+            loop.close()
+    
+    assistant_thread = threading.Thread(target=run_assistant, daemon=True)
+    assistant_thread.start()
 
 
 def main():
